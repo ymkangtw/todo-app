@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# SQLite database
+server/todo.db
+server/todo.db-wal
+server/todo.db-shm
+
+# Legacy data file
+server/db.json
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Build output
+client/dist/
