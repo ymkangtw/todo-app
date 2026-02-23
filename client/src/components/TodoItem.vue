@@ -4,18 +4,41 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  draggable: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 defineEmits(['toggle', 'edit', 'delete']);
 
 const priorityLabel = { high: '高優先', medium: '中優先', low: '低優先' };
 const priorityTagType = { high: 'danger', medium: 'warning', low: 'success' };
+const priorityBg = {
+  high: '#fef0f0',
+  medium: '#fdf6ec',
+  low: '#f0f9eb',
+};
+
+const formatDate = (iso) => {
+  const d = new Date(iso);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+};
 </script>
 
 <template>
-  <div
-    class="todo-item"
-    :class="[`priority-${todo.priority}`, { 'is-completed': todo.completed }]"
+  <el-card
+    shadow="hover"
+    class="todo-card"
+    :class="{ 'is-completed': todo.completed, 'is-draggable': draggable }"
+    :body-style="{
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: '12px',
+      padding: '14px 16px',
+      backgroundColor: priorityBg[todo.priority],
+    }"
   >
     <el-checkbox
       :model-value="todo.completed"
@@ -30,9 +53,14 @@ const priorityTagType = { high: 'danger', medium: 'warning', low: 'success' };
     </div>
 
     <div class="todo-meta">
-      <el-tag :type="priorityTagType[todo.priority]" size="small" effect="light" round>
-        {{ priorityLabel[todo.priority] }}
-      </el-tag>
+      <div class="todo-meta-row">
+        <el-tag :type="priorityTagType[todo.priority]" size="small" effect="light" round>
+          {{ priorityLabel[todo.priority] }}
+        </el-tag>
+        <el-text type="primary" size="small" tag="span" class="todo-date">
+          {{ formatDate(todo.createdAt) }}
+        </el-text>
+      </div>
       <div class="todo-actions">
         <el-tooltip content="編輯" placement="top" :show-after="400">
           <el-button size="small" circle @click="$emit('edit', todo)">
@@ -56,32 +84,33 @@ const priorityTagType = { high: 'danger', medium: 'warning', low: 'success' };
         </el-popconfirm>
       </div>
     </div>
-  </div>
+  </el-card>
 </template>
 
 <style scoped>
-.todo-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 14px 16px;
-  border-radius: 8px;
-  border-left: 4px solid transparent;
-  background: #fff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-  transition: box-shadow 0.15s, transform 0.15s;
+.todo-card {
+  transition: transform 0.15s;
 }
 
-.todo-item:hover {
-  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.1);
+.todo-card:hover {
   transform: translateY(-1px);
 }
 
-.todo-item.priority-high  { border-left-color: #f56c6c; }
-.todo-item.priority-medium { border-left-color: #e6a23c; }
-.todo-item.priority-low   { border-left-color: #67c23a; }
+.todo-card.is-draggable {
+  cursor: grab;
+}
 
-.todo-item.is-completed { opacity: 0.55; }
+.todo-card.is-draggable:active {
+  cursor: grabbing;
+}
+
+.todo-card.is-completed {
+  opacity: 0.55;
+}
+
+:deep(.todo-card .el-card__body) {
+  border-radius: inherit;
+}
 
 .todo-content {
   flex: 1;
@@ -118,8 +147,20 @@ const priorityTagType = { high: 'danger', medium: 'warning', low: 'success' };
   flex-shrink: 0;
 }
 
+.todo-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.todo-date {
+  font-weight: bold;
+  white-space: nowrap;
+}
+
 .todo-actions {
   display: flex;
   gap: 4px;
 }
+
 </style>

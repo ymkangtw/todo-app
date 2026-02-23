@@ -25,13 +25,29 @@ db.exec(`
   )
 `);
 
+// Add sortOrder column if it doesn't exist (compatible with existing data)
+try {
+  db.exec('ALTER TABLE todos ADD COLUMN sortOrder INTEGER DEFAULT 0');
+  // Backfill existing rows with ascending order based on creation time
+  const rows = db.prepare('SELECT id FROM todos ORDER BY createdAt ASC').all();
+  const backfill = db.prepare('UPDATE todos SET sortOrder = ? WHERE id = ?');
+  const backfillAll = db.transaction(() => {
+    rows.forEach((row, i) => backfill.run(i, row.id));
+  });
+  backfillAll();
+} catch {
+  // Column already exists — ignore
+}
+
 // Prepared statements
 const stmts = {
-  getAll: db.prepare('SELECT * FROM todos'),
+  getAll: db.prepare('SELECT * FROM todos ORDER BY sortOrder ASC'),
   getById: db.prepare('SELECT * FROM todos WHERE id = ?'),
-  insert: db.prepare('INSERT INTO todos (id, title, description, priority, completed, createdAt) VALUES (@id, @title, @description, @priority, @completed, @createdAt)'),
+  insert: db.prepare('INSERT INTO todos (id, title, description, priority, completed, createdAt, sortOrder) VALUES (@id, @title, @description, @priority, @completed, @createdAt, @sortOrder)'),
   update: db.prepare('UPDATE todos SET title = @title, description = @description, priority = @priority, completed = @completed WHERE id = @id'),
   delete: db.prepare('DELETE FROM todos WHERE id = ?'),
+  maxSortOrder: db.prepare('SELECT COALESCE(MAX(sortOrder), -1) AS maxOrder FROM todos'),
+  updateOrder: db.prepare('UPDATE todos SET sortOrder = @sortOrder WHERE id = @id'),
 };
 
 const rowToTodo = (row) => ({ ...row, completed: !!row.completed });
@@ -49,6 +65,7 @@ app.post('/api/todos', (req, res) => {
     return res.status(400).json({ error: '標題不能為空' });
   }
 
+  const maxOrder = stmts.maxSortOrder.get().maxOrder;
   const todo = {
     id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     title: title.trim(),
@@ -56,9 +73,25 @@ app.post('/api/todos', (req, res) => {
     priority,
     completed: 0,
     createdAt: new Date().toISOString(),
+    sortOrder: maxOrder + 1,
   };
   stmts.insert.run(todo);
   res.status(201).json(rowToTodo(todo));
+});
+
+// PUT reorder todos (must be before :id route)
+app.put('/api/todos/reorder', (req, res) => {
+  const items = req.body;
+  if (!Array.isArray(items)) {
+    return res.status(400).json({ error: '需要陣列格式' });
+  }
+  const reorder = db.transaction(() => {
+    for (const { id, sortOrder } of items) {
+      stmts.updateOrder.run({ id, sortOrder });
+    }
+  });
+  reorder();
+  res.json({ ok: true });
 });
 
 // PUT update todo

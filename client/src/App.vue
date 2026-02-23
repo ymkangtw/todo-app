@@ -1,6 +1,7 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { ElMessageBox, ElMessage } from 'element-plus';
+import draggable from 'vuedraggable';
 import TodoForm from './components/TodoForm.vue';
 import TodoItem from './components/TodoItem.vue';
 
@@ -10,8 +11,9 @@ const error = ref('');
 
 const filterStatus = ref('all');    // all | active | completed
 const filterPriority = ref('all');  // all | high | medium | low
-const sortBy = ref('createdAt');    // createdAt | priority
+const sortBy = ref('createdAt');    // createdAt | priority | manual
 
+const draggableList = ref([]);
 const editingTodo = ref(null);
 const editDialogVisible = ref(false);
 const todoFormRef = ref(null);
@@ -34,6 +36,9 @@ const filteredTodos = computed(() => {
     result = result.filter((t) => t.priority === filterPriority.value);
   }
 
+  if (sortBy.value === 'manual') {
+    return [...result].sort((a, b) => a.sortOrder - b.sortOrder);
+  }
   return [...result].sort((a, b) =>
     sortBy.value === 'priority'
       ? PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]
@@ -149,6 +154,34 @@ const clearCompleted = async () => {
   ElMessage({ message: '已清除所有完成事項', type: 'success' });
 };
 
+// Sync draggableList when filteredTodos changes
+watch(filteredTodos, (val) => {
+  draggableList.value = [...val];
+}, { immediate: true });
+
+const onDragEnd = async () => {
+  const items = draggableList.value.map((todo, index) => ({
+    id: todo.id,
+    sortOrder: index,
+  }));
+  // Update local state immediately
+  draggableList.value.forEach((todo, index) => {
+    todo.sortOrder = index;
+    const orig = todos.value.find((t) => t.id === todo.id);
+    if (orig) orig.sortOrder = index;
+  });
+  try {
+    const res = await fetch(`${API}/reorder`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(items),
+    });
+    if (!res.ok) throw new Error('排序更新失敗');
+  } catch (e) {
+    ElMessage({ message: e.message, type: 'error' });
+  }
+};
+
 onMounted(fetchTodos);
 </script>
 
@@ -251,6 +284,7 @@ onMounted(fetchTodos);
           <el-select v-model="sortBy" size="small" style="width: 115px">
             <el-option label="建立時間" value="createdAt" />
             <el-option label="優先級別" value="priority" />
+            <el-option label="手動排序" value="manual" />
           </el-select>
         </div>
       </div>
@@ -302,16 +336,25 @@ onMounted(fetchTodos);
           :image-size="80"
         />
 
-        <TransitionGroup v-else name="list" tag="div" class="todo-list">
-          <TodoItem
-            v-for="todo in filteredTodos"
-            :key="todo.id"
-            :todo="todo"
-            @toggle="handleToggle"
-            @edit="handleEdit"
-            @delete="deleteTodo"
-          />
-        </TransitionGroup>
+        <draggable
+          v-else
+          v-model="draggableList"
+          item-key="id"
+          :disabled="sortBy !== 'manual'"
+          :animation="200"
+          class="todo-list"
+          @end="onDragEnd"
+        >
+          <template #item="{ element }">
+            <TodoItem
+              :todo="element"
+              :draggable="sortBy === 'manual'"
+              @toggle="handleToggle"
+              @edit="handleEdit"
+              @delete="deleteTodo"
+            />
+          </template>
+        </draggable>
       </div>
     </el-card>
   </div>
