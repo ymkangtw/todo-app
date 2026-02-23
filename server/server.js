@@ -8,6 +8,7 @@ const PORT = 3001;
 
 app.use(cors());
 app.use(express.json());
+app.use(express.static(path.resolve(__dirname, '../client/dist')));
 
 // Initialize SQLite database
 const db = new Database(path.join(__dirname, 'todo.db'));
@@ -86,6 +87,11 @@ app.delete('/api/todos/:id', (req, res) => {
   }
   stmts.delete.run(req.params.id);
   res.status(204).send();
+});
+
+// SPA fallback: non-API requests serve index.html
+app.get('*', (req, res) => {
+  res.sendFile(path.resolve(__dirname, '../client/dist/index.html'));
 });
 
 app.listen(PORT, () => {
