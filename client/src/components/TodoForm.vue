@@ -1,5 +1,7 @@
 <script setup>
-import { ref, reactive, watch, nextTick } from 'vue';
+import { ref, reactive, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
+import Vditor from 'vditor';
+import 'vditor/dist/index.css';
 
 const props = defineProps({
   editingTodo: {
@@ -11,9 +13,11 @@ const props = defineProps({
 const emit = defineEmits(['submit', 'cancel']);
 
 const formRef = ref(null);
+const vditorRef = ref(null);
+let vditorInstance = null;
+
 const formData = reactive({
   title: '',
-  description: '',
   priority: 'medium',
 });
 
@@ -27,13 +31,35 @@ const priorityOptions = [
   { label: '🟢 低優先', value: 'low' },
 ];
 
+const initVditor = () => {
+  if (!vditorRef.value) return;
+  vditorInstance = new Vditor(vditorRef.value, {
+    height: 300,
+    minHeight: 300,
+    resize: { enable: true },
+    lang: 'en_US',
+    mode: 'wysiwyg',
+    placeholder: '選填備註（支援 Markdown）...',
+    toolbar: ['headings', 'bold', 'italic', 'strike', 'link', '|', 'list', 'ordered-list', 'check', 'outdent', 'indent', '|', 'quote', 'line', 'code', 'inline-code', 'insert-before', 'insert-after', '|', 'table', 'upload', 'emoji', '|', 'undo', 'redo', 'export'],
+    toolbarConfig: { pin: true },
+    cache: { enable: false },
+    after: () => {
+      if (props.editingTodo) {
+        vditorInstance.setValue(props.editingTodo.description || '');
+      }
+    },
+  });
+};
+
 watch(
   () => props.editingTodo,
   (todo) => {
     if (todo) {
       formData.title = todo.title;
-      formData.description = todo.description || '';
       formData.priority = todo.priority;
+      if (vditorInstance) {
+        vditorInstance.setValue(todo.description || '');
+      }
     }
   },
   { immediate: true }
@@ -41,22 +67,36 @@ watch(
 
 const reset = () => {
   formData.title = '';
-  formData.description = '';
   formData.priority = 'medium';
+  if (vditorInstance) {
+    vditorInstance.setValue('');
+  }
   nextTick(() => formRef.value?.clearValidate());
 };
 
 const handleSubmit = async () => {
   const valid = await formRef.value.validate().catch(() => false);
   if (!valid) return;
+  const description = vditorInstance ? vditorInstance.getValue().trim() : '';
   emit('submit', {
     title: formData.title.trim(),
-    description: formData.description.trim(),
+    description,
     priority: formData.priority,
   });
 };
 
-defineExpose({ reset });
+onMounted(() => {
+  initVditor();
+});
+
+onBeforeUnmount(() => {
+  if (vditorInstance) {
+    vditorInstance.destroy();
+    vditorInstance = null;
+  }
+});
+
+defineExpose({ reset, initVditor });
 </script>
 
 <template>
@@ -94,16 +134,8 @@ defineExpose({ reset });
       </el-col>
     </el-row>
 
-    <el-form-item label="備註" prop="description">
-      <el-input
-        v-model="formData.description"
-        type="textarea"
-        placeholder="選填備註..."
-        :rows="2"
-        maxlength="300"
-        show-word-limit
-        resize="vertical"
-      />
+    <el-form-item label="備註">
+      <div ref="vditorRef" class="vditor-container"></div>
     </el-form-item>
 
     <el-form-item>
@@ -116,3 +148,9 @@ defineExpose({ reset });
     </el-form-item>
   </el-form>
 </template>
+
+<style scoped>
+.vditor-container {
+  width: 100%;
+}
+</style>

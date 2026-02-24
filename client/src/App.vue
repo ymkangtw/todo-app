@@ -296,6 +296,7 @@ onMounted(fetchTodos);
       title="✏️ 編輯待辦事項"
       width="520px"
       align-center
+      destroy-on-close
       @close="editingTodo = null"
     >
       <TodoForm

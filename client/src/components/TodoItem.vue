@@ -1,4 +1,8 @@
 <script setup>
+import { ref, watch, onMounted, nextTick } from 'vue';
+import Vditor from 'vditor';
+import 'vditor/dist/index.css';
+
 const props = defineProps({
   todo: {
     type: Object,
@@ -25,6 +29,25 @@ const formatDate = (iso) => {
   const pad = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 };
+
+const descRef = ref(null);
+
+const renderMarkdown = () => {
+  if (descRef.value && props.todo.description) {
+    Vditor.preview(descRef.value, props.todo.description, {
+      mode: 'dark',
+      hljs: { lineNumber: true },
+    });
+  }
+};
+
+onMounted(() => {
+  nextTick(renderMarkdown);
+});
+
+watch(() => props.todo.description, () => {
+  nextTick(renderMarkdown);
+});
 </script>
 
 <template>
@@ -49,7 +72,7 @@ const formatDate = (iso) => {
       <span class="todo-title" :class="{ 'title-done': todo.completed }">
         {{ todo.title }}
       </span>
-      <p v-if="todo.description" class="todo-desc">{{ todo.description }}</p>
+      <div v-if="todo.description" ref="descRef" class="todo-desc vditor-reset"></div>
     </div>
 
     <div class="todo-meta">
@@ -133,10 +156,26 @@ const formatDate = (iso) => {
 
 .todo-desc {
   font-size: 13px;
-  color: #909399;
-  margin-top: 4px;
+  color: #606266;
+  margin-top: 6px;
   word-break: break-word;
-  line-height: 1.4;
+  line-height: 1.5;
+}
+
+.todo-desc :deep(p) {
+  margin: 0 0 4px;
+}
+
+.todo-desc :deep(p:last-child) {
+  margin-bottom: 0;
+}
+
+.todo-desc :deep(img) {
+  max-width: 100%;
+}
+
+.todo-desc :deep(pre) {
+  font-size: 12px;
 }
 
 .todo-meta {
