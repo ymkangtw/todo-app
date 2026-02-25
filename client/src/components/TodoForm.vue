@@ -38,7 +38,7 @@ const initVditor = () => {
     minHeight: 300,
     resize: { enable: true },
     lang: 'en_US',
-    mode: 'wysiwyg',
+    mode: 'ir',
     placeholder: '選填備註（支援 Markdown）...',
     toolbar: ['headings', 'bold', 'italic', 'strike', 'link', '|', 'list', 'ordered-list', 'check', 'outdent', 'indent', '|', 'quote', 'line', 'code', 'inline-code', 'insert-before', 'insert-after', '|', 'table', 'upload', 'emoji', '|', 'undo', 'redo', 'export'],
     toolbarConfig: { pin: true },
