@@ -19,9 +19,9 @@ defineEmits(['toggle', 'edit', 'delete']);
 const priorityLabel = { high: '高優先', medium: '中優先', low: '低優先' };
 const priorityTagType = { high: 'danger', medium: 'warning', low: 'success' };
 const priorityBg = {
-  high: '#fef0f0',
-  medium: '#fdf6ec',
-  low: '#f0f9eb',
+  high: 'var(--red-1)',
+  medium: 'var(--gold-1)',
+  low: 'var(--green-1)',
 };
 
 const formatDate = (iso) => {
@@ -144,19 +144,19 @@ watch(() => props.todo.description, () => {
 .todo-title {
   font-size: 15px;
   font-weight: 500;
-  color: #303133;
+  color: var(--gray-10);
   word-break: break-word;
   display: block;
 }
 
 .todo-title.title-done {
   text-decoration: line-through;
-  color: #909399;
+  color: var(--gray-7);
 }
 
 .todo-desc {
   font-size: 13px;
-  color: #606266;
+  color: var(--gray-8);
   margin-top: 6px;
   word-break: break-word;
   line-height: 1.5;

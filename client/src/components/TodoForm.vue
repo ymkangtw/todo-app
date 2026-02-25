@@ -134,9 +134,13 @@ defineExpose({ reset, initVditor });
       </el-col>
     </el-row>
 
-    <el-form-item label="備註">
-      <div ref="vditorRef" class="vditor-container"></div>
-    </el-form-item>
+    <el-row :gutter="12">
+      <el-col :span="24">
+        <el-form-item label="備註">
+          <div ref="vditorRef" class="vditor-container"></div>
+        </el-form-item>
+      </el-col>
+    </el-row>
 
     <el-form-item>
       <el-button type="primary" @click="handleSubmit">

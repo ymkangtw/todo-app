@@ -1,6 +1,7 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { ElMessageBox, ElMessage } from 'element-plus';
+import { io } from 'socket.io-client';
 import draggable from 'vuedraggable';
 import TodoForm from './components/TodoForm.vue';
 import TodoItem from './components/TodoItem.vue';
@@ -20,6 +21,9 @@ const todoFormRef = ref(null);
 
 const API = '/api/todos';
 const PRIORITY_ORDER = { high: 1, medium: 2, low: 3 };
+
+const socket = io();
+const socketHeaders = () => ({ 'X-Socket-Id': socket.id });
 
 // ---- Computed ----
 
@@ -73,7 +77,7 @@ const addTodo = async (data) => {
   try {
     const res = await fetch(API, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...socketHeaders() },
       body: JSON.stringify(data),
     });
     if (!res.ok) throw new Error('新增失敗');
@@ -90,7 +94,7 @@ const updateTodo = async (id, updates) => {
   try {
     const res = await fetch(`${API}/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...socketHeaders() },
       body: JSON.stringify(updates),
     });
     if (!res.ok) throw new Error('更新失敗');
@@ -104,7 +108,7 @@ const updateTodo = async (id, updates) => {
 
 const deleteTodo = async (id) => {
   try {
-    const res = await fetch(`${API}/${id}`, { method: 'DELETE' });
+    const res = await fetch(`${API}/${id}`, { method: 'DELETE', headers: socketHeaders() });
     if (!res.ok) throw new Error('刪除失敗');
     todos.value = todos.value.filter((t) => t.id !== id);
     ElMessage({ message: '已刪除', type: 'success' });
@@ -148,7 +152,7 @@ const clearCompleted = async () => {
   }
   const completed = todos.value.filter((t) => t.completed);
   for (const todo of completed) {
-    await fetch(`${API}/${todo.id}`, { method: 'DELETE' });
+    await fetch(`${API}/${todo.id}`, { method: 'DELETE', headers: socketHeaders() });
   }
   todos.value = todos.value.filter((t) => !t.completed);
   ElMessage({ message: '已清除所有完成事項', type: 'success' });
@@ -173,7 +177,7 @@ const onDragEnd = async () => {
   try {
     const res = await fetch(`${API}/reorder`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...socketHeaders() },
       body: JSON.stringify(items),
     });
     if (!res.ok) throw new Error('排序更新失敗');
@@ -182,7 +186,33 @@ const onDragEnd = async () => {
   }
 };
 
-onMounted(fetchTodos);
+onMounted(() => {
+  fetchTodos();
+
+  socket.on('todo:created', (todo) => {
+    todos.value.push(todo);
+  });
+
+  socket.on('todo:updated', (updated) => {
+    const index = todos.value.findIndex((t) => t.id === updated.id);
+    if (index !== -1) todos.value[index] = updated;
+  });
+
+  socket.on('todo:deleted', (id) => {
+    todos.value = todos.value.filter((t) => t.id !== id);
+  });
+
+  socket.on('todo:reordered', (items) => {
+    for (const { id, sortOrder } of items) {
+      const todo = todos.value.find((t) => t.id === id);
+      if (todo) todo.sortOrder = sortOrder;
+    }
+  });
+});
+
+onBeforeUnmount(() => {
+  socket.disconnect();
+});
 </script>
 
 <template>
@@ -294,7 +324,7 @@ onMounted(fetchTodos);
     <el-dialog
       v-model="editDialogVisible"
       title="✏️ 編輯待辦事項"
-      width="520px"
+      width="600px"
       align-center
       destroy-on-close
       @close="editingTodo = null"
@@ -377,13 +407,13 @@ onMounted(fetchTodos);
 .app-title {
   font-size: 30px;
   font-weight: 800;
-  color: #303133;
+  color: var(--gray-10);
   letter-spacing: -0.5px;
 }
 
 .app-subtitle {
   font-size: 14px;
-  color: #909399;
+  color: var(--gray-7);
   margin-top: 6px;
 }
 
@@ -407,9 +437,9 @@ onMounted(fetchTodos);
   line-height: 1.2;
 }
 
-.stat-primary { color: #409eff; }
-.stat-success { color: #67c23a; }
-.stat-danger  { color: #f56c6c; }
+.stat-primary { color: var(--blue-6); }
+.stat-success { color: var(--green-6); }
+.stat-danger  { color: var(--red-5); }
 
 /* Error */
 .error-alert {
@@ -427,7 +457,7 @@ onMounted(fetchTodos);
   gap: 6px;
   font-size: 14px;
   font-weight: 600;
-  color: #303133;
+  color: var(--gray-10);
 }
 
 /* Controls */
@@ -447,7 +477,7 @@ onMounted(fetchTodos);
 .control-label {
   font-size: 13px;
   font-weight: 500;
-  color: #606266;
+  color: var(--gray-8);
   white-space: nowrap;
 }
 

@@ -1,10 +1,24 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const http = require('http');
+const { Server } = require('socket.io');
 const Database = require('better-sqlite3');
 
 const app = express();
 const PORT = 3001;
+
+const httpServer = http.createServer(app);
+const io = new Server(httpServer, {
+  cors: { origin: '*' },
+});
+
+io.on('connection', (socket) => {
+  console.log(`🔌 Client connected: ${socket.id}`);
+  socket.on('disconnect', () => {
+    console.log(`❌ Client disconnected: ${socket.id}`);
+  });
+});
 
 app.use(cors());
 app.use(express.json());
@@ -76,7 +90,14 @@ app.post('/api/todos', (req, res) => {
     sortOrder: maxOrder + 1,
   };
   stmts.insert.run(todo);
-  res.status(201).json(rowToTodo(todo));
+  const created = rowToTodo(todo);
+  const socketId = req.headers['x-socket-id'];
+  if (socketId) {
+    io.sockets.sockets.get(socketId)?.broadcast.emit('todo:created', created);
+  } else {
+    io.emit('todo:created', created);
+  }
+  res.status(201).json(created);
 });
 
 // PUT reorder todos (must be before :id route)
@@ -91,6 +112,12 @@ app.put('/api/todos/reorder', (req, res) => {
     }
   });
   reorder();
+  const socketId = req.headers['x-socket-id'];
+  if (socketId) {
+    io.sockets.sockets.get(socketId)?.broadcast.emit('todo:reordered', items);
+  } else {
+    io.emit('todo:reordered', items);
+  }
   res.json({ ok: true });
 });
 
@@ -109,7 +136,14 @@ app.put('/api/todos/:id', (req, res) => {
     completed: typeof merged.completed === 'boolean' ? (merged.completed ? 1 : 0) : merged.completed,
   };
   stmts.update.run(updated);
-  res.json(rowToTodo(stmts.getById.get(existing.id)));
+  const result = rowToTodo(stmts.getById.get(existing.id));
+  const socketId = req.headers['x-socket-id'];
+  if (socketId) {
+    io.sockets.sockets.get(socketId)?.broadcast.emit('todo:updated', result);
+  } else {
+    io.emit('todo:updated', result);
+  }
+  res.json(result);
 });
 
 // DELETE todo
@@ -119,6 +153,12 @@ app.delete('/api/todos/:id', (req, res) => {
     return res.status(404).json({ error: '找不到此待辦事項' });
   }
   stmts.delete.run(req.params.id);
+  const socketId = req.headers['x-socket-id'];
+  if (socketId) {
+    io.sockets.sockets.get(socketId)?.broadcast.emit('todo:deleted', req.params.id);
+  } else {
+    io.emit('todo:deleted', req.params.id);
+  }
   res.status(204).send();
 });
 
@@ -127,6 +167,6 @@ app.get('*', (req, res) => {
   res.sendFile(path.resolve(__dirname, '../client/dist/index.html'));
 });
 
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`✅ 伺服器運行於 http://localhost:${PORT}`);
 });

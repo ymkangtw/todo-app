@@ -5,6 +5,7 @@ import zhTw from 'element-plus/dist/locale/zh-tw.mjs';
 import * as ElementPlusIconsVue from '@element-plus/icons-vue';
 import App from './App.vue';
 import './assets/main.css';
+import './assets/style.css';
 
 const app = createApp(App);
 
