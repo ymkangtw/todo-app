@@ -1,32 +1,64 @@
-const path = require('path');
-const Database = require('better-sqlite3');
+const { Sequelize, DataTypes } = require('sequelize');
 
-// Initialize SQLite database
-const db = new Database(path.join(__dirname, '..', 'todo.db'));
-db.pragma('journal_mode = WAL');
+const sequelize = new Sequelize(
+  process.env.DB_NAME,
+  process.env.DB_USER,
+  process.env.DB_PASSWORD,
+  {
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT,
+    dialect: 'postgres',
+    dialectOptions: {
+      ssl: { rejectUnauthorized: false },
+    },
+    logging: false,
+  }
+);
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS todos (
-    id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
-    description TEXT DEFAULT '',
-    priority TEXT DEFAULT 'medium',
-    completed INTEGER DEFAULT 0,
-    createdAt TEXT NOT NULL
-  )
-`);
+const Todo = sequelize.define('Todo', {
+  id: {
+    type: DataTypes.TEXT,
+    primaryKey: true,
+  },
+  title: {
+    type: DataTypes.TEXT,
+    allowNull: false,
+  },
+  description: {
+    type: DataTypes.TEXT,
+    defaultValue: '',
+  },
+  priority: {
+    type: DataTypes.TEXT,
+    defaultValue: 'medium',
+  },
+  completed: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+  },
+  createdAt: {
+    type: DataTypes.DATE,
+    allowNull: false,
+  },
+  sortOrder: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+  },
+}, {
+  tableName: 'todos',
+  timestamps: false,
+});
 
-// Add sortOrder column if it doesn't exist (compatible with existing data)
-try {
-  db.exec('ALTER TABLE todos ADD COLUMN sortOrder INTEGER DEFAULT 0');
-  const rows = db.prepare('SELECT id FROM todos ORDER BY createdAt ASC').all();
-  const backfill = db.prepare('UPDATE todos SET sortOrder = ? WHERE id = ?');
-  const backfillAll = db.transaction(() => {
-    rows.forEach((row, i) => backfill.run(i, row.id));
-  });
-  backfillAll();
-} catch {
-  // Column already exists — ignore
-}
+const withTransaction = async (fn) => {
+  const t = await sequelize.transaction();
+  try {
+    const result = await fn(t);
+    await t.commit();
+    return result;
+  } catch (err) {
+    await t.rollback();
+    throw err;
+  }
+};
 
-module.exports = db;
+module.exports = { sequelize, Todo, withTransaction };

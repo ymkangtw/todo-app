@@ -14,50 +14,70 @@ module.exports = (io) => {
   };
 
   // GET all todos
-  router.get('/', (req, res) => {
-    res.json(todosCtrl.getAll());
+  router.get('/', async (req, res) => {
+    try {
+      res.json(await todosCtrl.getAll());
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
   // POST create todo
-  router.post('/', (req, res) => {
+  router.post('/', async (req, res) => {
     const { title, description, priority } = req.body;
     if (!title || !title.trim()) {
       return res.status(400).json({ error: '標題不能為空' });
     }
-    const created = todosCtrl.create({ title, description, priority });
-    broadcast(req, 'todo:created', created);
-    res.status(201).json(created);
+    try {
+      const created = await todosCtrl.create({ title, description, priority });
+      broadcast(req, 'todo:created', created);
+      res.status(201).json(created);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
   // PUT reorder todos (must be before :id route)
-  router.put('/reorder', (req, res) => {
+  router.put('/reorder', async (req, res) => {
     const items = req.body;
     if (!Array.isArray(items)) {
       return res.status(400).json({ error: '需要陣列格式' });
     }
-    todosCtrl.reorder(items);
-    broadcast(req, 'todo:reordered', items);
-    res.json({ ok: true });
+    try {
+      await todosCtrl.reorder(items);
+      broadcast(req, 'todo:reordered', items);
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
   // PUT update todo
-  router.put('/:id', (req, res) => {
-    const result = todosCtrl.update(req.params.id, req.body);
-    if (!result) {
-      return res.status(404).json({ error: '找不到此待辦事項' });
+  router.put('/:id', async (req, res) => {
+    try {
+      const result = await todosCtrl.update(req.params.id, req.body);
+      if (!result) {
+        return res.status(404).json({ error: '找不到此待辦事項' });
+      }
+      broadcast(req, 'todo:updated', result);
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
-    broadcast(req, 'todo:updated', result);
-    res.json(result);
   });
 
   // DELETE todo
-  router.delete('/:id', (req, res) => {
-    const success = todosCtrl.remove(req.params.id);
-    if (!success) {
-      return res.status(404).json({ error: '找不到此待辦事項' });
+  router.delete('/:id', async (req, res) => {
+    try {
+      const success = await todosCtrl.remove(req.params.id);
+      if (!success) {
+        return res.status(404).json({ error: '找不到此待辦事項' });
+      }
+      broadcast(req, 'todo:deleted', req.params.id);
+      res.status(204).send();
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
-    broadcast(req, 'todo:deleted', req.params.id);
-    res.status(204).send();
   });
 
   return router;
