@@ -1,4 +1,4 @@
-const { Sequelize, DataTypes } = require('sequelize');
+const { Sequelize, QueryTypes } = require('sequelize');
 
 const sequelize = new Sequelize(
   process.env.DB_NAME,
@@ -15,40 +15,6 @@ const sequelize = new Sequelize(
   }
 );
 
-const Todo = sequelize.define('Todo', {
-  id: {
-    type: DataTypes.TEXT,
-    primaryKey: true,
-  },
-  title: {
-    type: DataTypes.TEXT,
-    allowNull: false,
-  },
-  description: {
-    type: DataTypes.TEXT,
-    defaultValue: '',
-  },
-  priority: {
-    type: DataTypes.TEXT,
-    defaultValue: 'medium',
-  },
-  completed: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: false,
-  },
-  createdAt: {
-    type: DataTypes.DATE,
-    allowNull: false,
-  },
-  sortOrder: {
-    type: DataTypes.INTEGER,
-    defaultValue: 0,
-  },
-}, {
-  tableName: 'todos',
-  timestamps: false,
-});
-
 const withTransaction = async (fn) => {
   const t = await sequelize.transaction();
   try {
@@ -61,4 +27,4 @@ const withTransaction = async (fn) => {
   }
 };
 
-module.exports = { sequelize, Todo, withTransaction };
+module.exports = { sequelize, QueryTypes, withTransaction };
