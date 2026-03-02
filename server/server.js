@@ -7,7 +7,7 @@ const { Server } = require('socket.io');
 const todosRoute = require('./routes/todos.route');
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 const httpServer = http.createServer(app);
 const io = new Server(httpServer, {

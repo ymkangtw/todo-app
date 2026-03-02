@@ -4,28 +4,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Commands
 
-### Server (backend)
-```bash
-cd server
-npm install
-npm run dev     # Development with nodemon (auto-restart)
-npm start       # Production start
-```
-Server runs on http://localhost:3001
+All commands run from the **root** `todo-app/` directory (npm workspaces).
 
-### Client (frontend)
 ```bash
-cd client
-npm install
-npm run dev     # Vite dev server with HMR
-npm run build   # Production build to client/dist/
-npm run preview # Preview production build
+npm install       # Install root + client + server dependencies
+npm run dev       # Start Vite (3000) + Express/nodemon (3001) concurrently
+npm run build     # Production build → client/dist/
+npm run start     # Production server (serves client/dist/ static files)
 ```
-Client runs on http://localhost:3000 (proxies `/api` and `/socket.io` to server)
+
+### Per-workspace commands (optional)
+```bash
+npm run dev -w server    # Server only (nodemon, port 3001)
+npm run dev -w client    # Client only (Vite HMR, port 3000)
+npm run preview -w client # Preview production build
+```
+Client proxies `/api` and `/socket.io` to server (port 3001)
 
 ## Architecture
 
-This is a monorepo-style Todo app with separate `client/` and `server/` directories, each with their own `package.json`. No shared root package.json.
+This is a monorepo Todo app using **npm workspaces**. Root `package.json` manages `client/` and `server/` workspaces, with `concurrently` for parallel dev servers.
 
 ### Backend (`server/`)
 - **Runtime**: Node.js with Express (CommonJS modules)
